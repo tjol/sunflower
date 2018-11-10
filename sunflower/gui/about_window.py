@@ -67,7 +67,7 @@ class AboutWindow:
 		Contributor(
 			name = 'Michael Kerch',
 			email = 'michael@way2cu.com',
-			website = 'misha.co.il',
+			website = 'https://misha.co.il',
 		),
 	]
 
@@ -84,6 +84,10 @@ class AboutWindow:
 			version = '{0[major]}.{0[minor]}{0[stage]} ({0[build]})'.format(parent.version)
 		else:
 			version = '{0[major]}.{0[minor]} ({0[build]})'.format(parent.version)
+
+		# add Python version info
+		version += '\n\nPython {}.{}.{}'.format(*sys.version_info[:3])
+		version += '\nGtk+ {}.{}.{}'.format(Gtk.MAJOR_VERSION, Gtk.MINOR_VERSION, Gtk.MICRO_VERSION)
 
 		# set about dialog image
 		base_path = os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0])))
@@ -112,8 +116,9 @@ class AboutWindow:
 		# set license
 		self._dialog.set_copyright(_(u'Copyright \u00a9 2010-2018 by Mladen Mijatov and contributors.'))
 
-		if os.path.isfile('COPYING'):
-			license_file = open('COPYING', 'r')
+		license_file = os.path.join(base_path, 'COPYING')
+		if os.path.isfile(license_file):
+			license_file = open(license_file, 'r')
 
 			if license_file:
 				license_text = license_file.read()
@@ -129,19 +134,19 @@ class AboutWindow:
 		self._dialog.set_authors(['{0} <{1}> {2}'.format(
 					contributor.name,
 					contributor.email,
-					contributor.website or ''
+					(u'\xa0<a href="{0}">{0}</a>'.format(contributor.website) if contributor.website else '')
 				) for contributor in self.contributors])
 
 		self._dialog.set_artists(['{0} <{1}> {2}'.format(
 					contributor.name,
 					contributor.email,
-					contributor.website or ''
+					(u'\xa0<a href="{0}">{0}</a>'.format(contributor.website) if contributor.website else '')
 				) for contributor in self.artists])
 
 		self._dialog.set_translator_credits('\n'.join(['{0} <{1}> {2} - {3}'.format(
 					contributor.name,
 					contributor.email,
-					contributor.website or '',
+					(u'\xa0<a href="{0}">{0}</a>'.format(contributor.website) if contributor.website else ''),
 					contributor.language
 				) for contributor in self.translators]))
 

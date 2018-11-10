@@ -1833,7 +1833,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
 	def goto_web(self, widget, uri):
 		"""Open URL stored in data"""
-		if '://' in uri:
+		if '://' in uri or uri.startswith('mailto:'):
 			webbrowser.open_new_tab(uri)
 
 		else:
