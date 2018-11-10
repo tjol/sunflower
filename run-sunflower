@@ -1,0 +1,17 @@
+#!/bin/sh
+
+sunflower_dir=`dirname $0`
+
+
+for python in python3 python2 python
+do
+    if $python -c '__import__("gi").require_version("Gtk", "3.0")' >/dev/null 2>&1
+    then
+        PYTHONPATH=$sunflower_dir exec $python -m sunflower "$@"
+    fi
+done
+
+echo >&2 Error launching sunflower:
+echo >&2 Could not find a suitable Python intepreter with PyGObject and Gtk.
+exit 1
+
