@@ -69,6 +69,8 @@ class LocationMenu:
 		bookmarks_container.set_size_request(-1, 300)
 
 		self._bookmarks = Gtk.ListBox.new()
+		self._bookmarks.connect('row-activated', self.__handle_row_activated)
+		self._bookmarks.set_activate_on_single_click(False)
 		bookmarks_container.add(self._bookmarks)
 
 		# create mounts list
@@ -152,12 +154,19 @@ class LocationMenu:
 		selected_location = self.__get_selected_location()
 		assert self._control is not None or selected_location is not None
 
+		self.__open_location(selected_location)
+
+	def __handle_row_activated(self, list_box, row):
+		if isinstance(row, Location):
+			self.__open_location(row)
+
+	def __open_location(self, location):
 		# close menu
 		self._popover.popdown()
 
 		# open selected path in currently active list
 		if isinstance(self._control, ItemList):
-			self._control.change_path(selected_location.get_location())
+			self._control.change_path(location.get_location())
 
 		return True
 
