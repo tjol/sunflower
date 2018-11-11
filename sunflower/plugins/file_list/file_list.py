@@ -1236,7 +1236,7 @@ class FileList(ItemList):
 
 		self._emblem_menu.show_all()
 
-	def _get_popup_menu_position(self, menu=None, data=None):
+	def _get_popup_menu_position(self, menu=None, *data):
 		"""Positions menu properly for given row"""
 		selection = self._item_list.get_selection()
 		item_list, selected_iter = selection.get_selected()

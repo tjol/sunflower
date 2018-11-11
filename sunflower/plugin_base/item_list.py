@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, division
 import sys
 if sys.version_info[0] == 2:
 	import future.standard_library
@@ -7,7 +7,7 @@ if sys.version_info[0] == 2:
 import os
 import urllib.parse
 
-from gi.repository import Gtk, Gdk
+from gi.repository import Gtk, Gdk, GLib
 from .plugin import PluginBase
 from .provider import Mode as FileMode
 from .. import common
@@ -559,9 +559,6 @@ class ItemList(PluginBase):
 		# handle right click
 		elif event.button == 3:
 			if event.type is Gdk.EventType.BUTTON_PRESS:
-				# record mouse down timestamp
-				self._popup_timestamp = event.get_time()
-
 				# prevent CTRL+RightClick from generating exceptions
 				if control_active:
 					result = True
@@ -576,17 +573,20 @@ class ItemList(PluginBase):
 					self._right_button_target_status = self._is_selected(path)
 					self._right_button_selected_so_far = [path]
 
+					self._right_button_timeout_id = Gdk.threads_add_timeout(
+						GLib.PRIORITY_HIGH_IDLE, 500, self._delayed_popup_timeout, widget, event)
+
+				else:
+					# show popup menu
+					self._show_popup_menu(widget, event=event, button=3)
+
 			elif event.type is Gdk.EventType.BUTTON_RELEASE:
 				# button was released, depending on options call specific method
-				time_valid = event.get_time() - self._popup_timestamp > 500
-				if event.x and event.y:
-					if not right_click_select or \
-					(right_click_select and time_valid and len(self._right_button_selected_so_far) == 1):
-						# show popup menu
-						self._show_popup_menu(widget)
-
-					if right_click_select:
-						self._right_button_select_active = False
+				if right_click_select:
+					self._right_button_select_active = False
+					if self._right_button_timeout_id is not None:
+						GLib.Source.remove(self._right_button_timeout_id)
+						self._right_button_timeout_id = None
 
 				result = True
 
@@ -619,7 +619,24 @@ class ItemList(PluginBase):
 				range_sorted = sorted(self._right_button_selected_so_far)
 				self._select_range(range_sorted[0], range_sorted[-1], self._right_button_target_status)
 
+				if self._right_button_timeout_id is not None:
+						GLib.Source.remove(self._right_button_timeout_id)
+						self._right_button_timeout_id = None
+
 		return False
+	
+	def _delayed_popup_timeout(self, widget, event):
+		# Only show popup if the cursor stayed on the original item!
+		if len(self._right_button_selected_so_far) == 1:
+			self._right_button_select_active = False
+			event.time = int(GLib.get_monotonic_time()//1000 + 5)
+			self._show_popup_menu(widget, event=event, button=3)
+
+		if self._right_button_timeout_id is not None:
+			GLib.Source.remove(self._right_button_timeout_id)
+			self._right_button_timeout_id = None
+
+		return False # Cancel timeout
 
 	def _handle_key_press(self, widget, event):
 		"""Handles key events in item list"""
@@ -1257,18 +1274,23 @@ class ItemList(PluginBase):
 		# if this method is called by Menu key data is actually event object
 		self._open_with_menu.popup(None, None, self._get_popup_menu_position, None, 1, 0)
 
-	def _show_popup_menu(self, widget=None, data=None):
+	def _show_popup_menu(self, widget=None, data=None, event=None, button=0):
 		"""Show item menu"""
 		# prepare elements in popup menu
 		self._prepare_popup_menu()
 
+		try:
+			event_time = event.time
+		except:
+			event_time = Gtk.get_current_event_time()
+
 		if data is not None:
 			# if this method is called by accelerator data is actually keyval
-			self._popup_menu.popup(None, None, self._get_popup_menu_position, None, 1, 0)
+			self._popup_menu.popup(None, None, self._get_popup_menu_position, None, button, event_time)
 
 		else:
 			# if called by mouse, we don't have the need to position the menu manually
-			self._popup_menu.popup(None, None, None, None, 1, 0)
+			self._popup_menu.popup(None, None, None, None, button, event_time)
 
 		return True
 
