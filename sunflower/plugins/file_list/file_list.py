@@ -1540,8 +1540,10 @@ class FileList(ItemList):
 
 		return True
 
-	def _select_range(self, start_path, end_path):
-		"""Set items in range to status opposite from first item in selection"""
+	def _select_range(self, start_path, end_path, selected=None):
+		"""Set selection status of items in range:
+		 * to status opposite from first item in selection (if selected=None)
+		 * to selected, if given"""
 		if len(self._store) == 1:  # exit when list doesn't have items
 			return
 
@@ -1557,7 +1559,8 @@ class FileList(ItemList):
 			start_path = (1, )
 
 		# values to be set in columns
-		selected = not self._store.get_value(current_iter, Column.SELECTED)
+		if selected is None:
+			selected = not self._store.get_value(current_iter, Column.SELECTED)
 		color = (None, self._selection_color)[selected]
 
 		for index in range(start_path[0], end_path[0] + 1):
@@ -1581,10 +1584,14 @@ class FileList(ItemList):
 					self._size['selected'] += [1, -1][status] * size
 
 		# call parent method
-		ItemList._select_range(self, start_path, end_path)
+		ItemList._select_range(self, start_path, end_path, selected)
 
 		# update status
 		self._update_status_with_statistis()
+
+	def _is_selected(self, path):
+		"""Get whether the item is currently in the selection"""
+		return self._store.get_value(self._store.get_iter(path), Column.SELECTED)
 
 	def _edit_selected(self, widget=None, data=None):
 		"""Abstract method to edit currently selected item"""

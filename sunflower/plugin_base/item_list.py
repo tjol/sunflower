@@ -99,6 +99,7 @@ class ItemList(PluginBase):
 		# connect events
 		self._item_list.connect('button-press-event', self._handle_button_press)
 		self._item_list.connect('button-release-event', self._handle_button_press)
+		self._item_list.connect('motion-notify-event', self._handle_mouse_motion)
 		self._item_list.connect('cursor-changed', self._handle_cursor_change)
 		self._item_list.connect('columns-changed', self._column_changed)
 		self._connect_main_object(self._item_list)
@@ -123,6 +124,9 @@ class ItemList(PluginBase):
 		self._open_with_item = None
 		self._open_with_menu = None
 		self._popup_menu = self._create_popup_menu()
+
+		# state variables during right-click selection drag
+		self._right_button_select_active = False
 
 		# create free space indicator in context menu
 		vbox_free_space = Gtk.VBox.new(False, 2)
@@ -562,17 +566,27 @@ class ItemList(PluginBase):
 				if control_active:
 					result = True
 
+				# Start selecting if in right click selection mode
+				if right_click_select:
+					self._item_list.add_events(Gdk.EventMask.POINTER_MOTION_MASK)
+					self._right_button_select_active = True
+					item = self._item_list.get_path_at_pos(int(event.x), int(event.y))
+					path = item[0]
+					self._select_range(path, path)
+					self._right_button_target_status = self._is_selected(path)
+					self._right_button_selected_so_far = [path]
+
 			elif event.type is Gdk.EventType.BUTTON_RELEASE:
 				# button was released, depending on options call specific method
 				time_valid = event.get_time() - self._popup_timestamp > 500
 				if event.x and event.y:
-					if not right_click_select or (right_click_select and time_valid):
+					if not right_click_select or \
+					(right_click_select and time_valid and len(self._right_button_selected_so_far) == 1):
 						# show popup menu
 						self._show_popup_menu(widget)
 
-					else:
-						# toggle item mark
-						self._toggle_selection(widget, advance=False)
+					if right_click_select:
+						self._right_button_select_active = False
 
 				result = True
 
@@ -591,6 +605,21 @@ class ItemList(PluginBase):
 			result = True
 
 		return result
+
+	def _handle_mouse_motion(self, widget, event):
+		if self._right_button_select_active:
+			item = self._item_list.get_path_at_pos(int(event.x), int(event.y))
+			if item is None:
+				return False
+			path = item[0]
+			if path not in self._right_button_selected_so_far:
+				self._right_button_selected_so_far.append(path)
+				# To ensure even items we didn't get events for are taken into account,
+				# we use _select_range.
+				range_sorted = sorted(self._right_button_selected_so_far)
+				self._select_range(range_sorted[0], range_sorted[-1], self._right_button_target_status)
+
+		return False
 
 	def _handle_key_press(self, widget, event):
 		"""Handles key events in item list"""
@@ -1402,11 +1431,15 @@ class ItemList(PluginBase):
 		"""Toggle selection from cursor to the end of the list"""
 		return True
 
-	def _select_range(self, start_path, end_path):
+	def _select_range(self, start_path, end_path, selected=None):
 		"""Set items in range to status opposite from frist item in selection"""
 		if self._parent.options.get('show_status_bar') == StatusVisible.WHEN_NEEDED:
 			selected_items = self._dirs['selected'] + self._files['selected']
 			(self._hide_status_bar, self._show_status_bar)[selected_items > 0]()
+
+	def _is_selected(self, path):
+		"""Get whether the item is currently in the selection"""
+		return False
 
 	def _view_selected(self, widget=None, data=None):
 		"""View currently selected item"""
