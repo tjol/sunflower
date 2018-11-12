@@ -101,7 +101,6 @@ class LocationMenu:
 	def update_bookmarks(self):
 		"""Populate bookmarks menu."""
 		options = self._application.bookmark_options
-		icon_manager = self._application.icon_manager
 
 		# clear existing entries
 		self._bookmarks.foreach(self._bookmarks.remove)
@@ -113,7 +112,7 @@ class LocationMenu:
 			self._bookmarks.add(Bookmark(os.path.expanduser('~'), 'user-home', _('Home directory')))
 
 		for data in options.get('bookmarks'):
-			icon_name = icon_manager.get_icon_for_directory(data['uri'])
+			icon_name = self.__get_icon_for_bookmark(uri)
 			self._bookmarks.add(Bookmark(data['uri'], icon_name, data['name']))
 
 		# gnome bookmarks
@@ -143,8 +142,15 @@ class LocationMenu:
 					name = os.path.basename(name)
 
 				# add entry
-				icon_name = icon_manager.get_icon_for_directory(uri)
+				icon_name = self.__get_icon_for_bookmark(uri)
 				self._bookmarks.add(Bookmark(uri, icon_name, name))
+
+	def __get_icon_for_bookmark(self, uri):
+		default_icon = self._application.icon_manager.get_icon_for_directory(uri)
+		if default_icon == 'folder' and '://' in uri and not uri.startswith('file://'):
+			return 'folder-remote'
+		else:
+			return 'folder'
 
 	def __get_selected_location(self):
 		"""Return location object selected or None."""
