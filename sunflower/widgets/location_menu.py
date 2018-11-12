@@ -126,6 +126,8 @@ class LocationMenu:
 		if options.get('system_bookmarks') and len(available_files) > 0:
 			self._bookmarks.add(GroupTitle(_('System wide')))
 
+			available_files.sort(key=lambda fn: os.stat(fn).st_mtime, reverse=True)
+
 			lines = []
 			with open(available_files[0], 'r') as raw_file:
 				lines.extend(raw_file.readlines(False))
